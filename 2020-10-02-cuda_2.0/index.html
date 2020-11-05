@@ -1,0 +1,441 @@
+<!doctype html>
+
+<html lang="en" class="h-100">
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta content="index, follow" name="robots">
+  <meta name="generator" content="Hugo 0.77.0" />
+  <link rel="stylesheet" href="https://juliagpu.org/css/bootstrap.min.css">
+
+  
+  
+  
+  <title>CUDA.jl 2.0 · JuliaGPU</title>
+  <style>
+.container {
+  max-width: 700px;
+}
+#nav-border {
+  border-bottom: 1px solid #212529;
+}
+#main {
+  margin-top: 1em;
+  margin-bottom: 4em;
+}
+#home-jumbotron {
+  background-color: inherit;
+}
+#footer .container {
+  padding: 1em 0;
+}
+#footer a {
+  color: inherit;
+  text-decoration: underline;
+}
+.font-125 {
+  font-size: 125%;
+}
+.tag-btn {
+  margin-bottom: 0.3em;
+}
+pre {
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 16px;
+}
+pre code {
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  background-color: transparent;
+  border-radius: 0;
+}
+code {
+  padding: 2px 4px;
+  font-size: 90%;
+  color: #c7254e;
+  background-color: #f9f2f4;
+  border-radius: 4px;
+}
+img,
+iframe,
+embed,
+video,
+audio {
+  max-width: 100%;
+}
+.card-img,
+.card-img-top,
+.card-img-bottom {
+  width: initial;
+}
+</style>
+
+</head>
+
+  <body class="d-flex flex-column h-100">
+    <div id="nav-border" class="container">
+  <nav class="navbar navbar-expand-lg navbar-light justify-content-center">
+    
+    
+    <ul class="navbar-nav">
+      
+        
+        
+        
+        
+        
+        
+
+        
+          <li class="nav-item ">
+            <a class="nav-link" href="/">
+              
+                
+                <i data-feather="home"></i> 
+              
+              Home
+            </a>
+          </li>
+        
+      
+        
+        
+        
+        
+        
+        
+
+        
+          <li class="nav-item active">
+            <a class="nav-link" href="/post/">
+              
+                
+                <i data-feather="file-text"></i> 
+              
+              Blog
+            </a>
+          </li>
+        
+      
+        
+        
+        
+        
+        
+        
+
+        
+          <li class="nav-item ">
+            <a class="nav-link" href="/learn/">
+              
+                
+                <i data-feather="book-open"></i> 
+              
+              Learn
+            </a>
+          </li>
+        
+      
+        
+        
+        
+        
+        
+        
+
+        
+          <li class="nav-item ">
+            <a class="nav-link" href="/cuda/">
+              
+              NVIDIA CUDA
+            </a>
+          </li>
+        
+      
+        
+        
+        
+        
+        
+        
+
+        
+          <li class="nav-item ">
+            <a class="nav-link" href="/rocm/">
+              
+              AMD ROCm
+            </a>
+          </li>
+        
+      
+        
+        
+        
+        
+        
+        
+
+        
+          <li class="nav-item ">
+            <a class="nav-link" href="/other/">
+              
+              Other
+            </a>
+          </li>
+        
+      
+    </ul>
+  </nav>
+</div>
+
+    <div class="container">
+      <main id="main">
+        
+
+<h1>CUDA.jl 2.0</h1>
+
+
+
+<i data-feather="calendar"></i> <time datetime="2020-10-02">Oct 2, 2020</time>
+
+
+
+
+  <br>
+  <i data-feather="edit-2"></i> Tim Besard
+
+
+<br><br>
+
+    <p>Today we&rsquo;re releasing CUDA.jl 2.0, a breaking release with several new features. Highlights
+include initial support for Float16, a switch to CUDA&rsquo;s new stream model, a much-needed
+rework of the sparse array support and support for CUDA 11.1.</p>
+<p>The release now requires <strong>Julia 1.5</strong>, and assumes a GPU with <strong>compute capability 5.0</strong> or
+higher (although most of the package will still work with an older GPU).</p>
+<h2 id="low--and-mixed-precision-operations">Low- and mixed-precision operations</h2>
+<p>With NVIDIA&rsquo;s latest GPUs featuring more and more low-precision operations,
+CUDA.jl <a href="https://github.com/JuliaGPU/CUDA.jl/pull/417">now</a> starts to support
+these data types. For example, the CUBLAS wrappers can be used with (B)Float16
+inputs (running under <code>JULIA_DEBUG=CUBLAS</code> to illustrate the called methods)
+thanks to the <code>cublasGemmEx</code> API call:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-julia" data-lang="julia">julia<span style="color:#f92672">&gt;</span> mul!(CUDA<span style="color:#f92672">.</span>zeros(<span style="color:#66d9ef">Float32</span>,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>), cu(rand(<span style="color:#66d9ef">Float16</span>,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>)), cu(rand(<span style="color:#66d9ef">Float16</span>,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>)))
+
+I<span style="color:#f92672">!</span> cuBLAS (v11<span style="color:#f92672">.</span><span style="color:#ae81ff">0</span>) <span style="color:#66d9ef">function</span> cublasStatus_t cublasGemmEx(<span style="color:#f92672">...</span>) called<span style="color:#f92672">:</span>
+i!  Atype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_16F(<span style="color:#ae81ff">2</span>)
+i!  Btype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_16F(<span style="color:#ae81ff">2</span>)
+i!  Ctype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_32F(<span style="color:#ae81ff">0</span>)
+i!  computeType<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cublasComputeType_t; val<span style="color:#f92672">=</span>CUBLAS_COMPUTE_32F(<span style="color:#ae81ff">68</span>)
+
+<span style="color:#ae81ff">2</span>×2 CuArray{<span style="color:#66d9ef">Float32</span>,<span style="color:#ae81ff">2</span>}<span style="color:#f92672">:</span>
+ <span style="color:#ae81ff">0.481284</span>  <span style="color:#ae81ff">0.561241</span>
+ <span style="color:#ae81ff">1.12923</span>   <span style="color:#ae81ff">1.04541</span>
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-julia" data-lang="julia">julia<span style="color:#f92672">&gt;</span> <span style="color:#66d9ef">using</span> BFloat16s
+
+julia<span style="color:#f92672">&gt;</span> mul!(CUDA<span style="color:#f92672">.</span>zeros(BFloat16,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>), cu(BFloat16<span style="color:#f92672">.</span>(rand(<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>))), cu(BFloat16<span style="color:#f92672">.</span>(rand(<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>))))
+
+I<span style="color:#f92672">!</span> cuBLAS (v11<span style="color:#f92672">.</span><span style="color:#ae81ff">0</span>) <span style="color:#66d9ef">function</span> cublasStatus_t cublasGemmEx(<span style="color:#f92672">...</span>) called<span style="color:#f92672">:</span>
+i!  Atype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_16BF(<span style="color:#ae81ff">14</span>)
+i!  Btype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_16BF(<span style="color:#ae81ff">14</span>)
+i!  Ctype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_16BF(<span style="color:#ae81ff">14</span>)
+i!  computeType<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cublasComputeType_t; val<span style="color:#f92672">=</span>CUBLAS_COMPUTE_32F(<span style="color:#ae81ff">68</span>)
+
+<span style="color:#ae81ff">2</span>×2 CuArray{BFloat16,<span style="color:#ae81ff">2</span>}<span style="color:#f92672">:</span>
+ <span style="color:#ae81ff">0.300781</span>   <span style="color:#ae81ff">0.71875</span>
+ <span style="color:#ae81ff">0.0163574</span>  <span style="color:#ae81ff">0.0241699</span>
+</code></pre></div><p>Alternatively, CUBLAS can be configured to automatically down-cast 32-bit inputs to Float16.
+This is <a href="https://github.com/JuliaGPU/CUDA.jl/pull/424">now</a> exposed through a task-local
+CUDA.jl math mode:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-julia" data-lang="julia">julia<span style="color:#f92672">&gt;</span> CUDA<span style="color:#f92672">.</span>math_mode!(CUDA<span style="color:#f92672">.</span>FAST_MATH; precision<span style="color:#f92672">=:</span><span style="color:#66d9ef">Float16</span>)
+
+julia<span style="color:#f92672">&gt;</span> mul!(CuArray(zeros(<span style="color:#66d9ef">Float32</span>,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>)), CuArray(rand(<span style="color:#66d9ef">Float32</span>,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>)), CuArray(rand(<span style="color:#66d9ef">Float32</span>,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>)))
+
+I<span style="color:#f92672">!</span> cuBLAS (v11<span style="color:#f92672">.</span><span style="color:#ae81ff">0</span>) <span style="color:#66d9ef">function</span> cublasStatus_t cublasGemmEx(<span style="color:#f92672">...</span>) called<span style="color:#f92672">:</span>
+i!  Atype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_32F(<span style="color:#ae81ff">0</span>)
+i!  Btype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_32F(<span style="color:#ae81ff">0</span>)
+i!  Ctype<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cudaDataType_t; val<span style="color:#f92672">=</span>CUDA_R_32F(<span style="color:#ae81ff">0</span>)
+i!  computeType<span style="color:#f92672">:</span> type<span style="color:#f92672">=</span>cublasComputeType_t; val<span style="color:#f92672">=</span>CUBLAS_COMPUTE_32F_FAST_16F(<span style="color:#ae81ff">74</span>)
+
+<span style="color:#ae81ff">2</span>×2 CuArray{<span style="color:#66d9ef">Float32</span>,<span style="color:#ae81ff">2</span>}<span style="color:#f92672">:</span>
+ <span style="color:#ae81ff">0.175258</span>  <span style="color:#ae81ff">0.226159</span>
+ <span style="color:#ae81ff">0.511893</span>  <span style="color:#ae81ff">0.331351</span>
+</code></pre></div><p>As part of these changes, CUDA.jl now defaults to using tensor cores. This may affect
+accuracy; use math mode <code>PEDANTIC</code> if you want the old behavior.</p>
+<p>Work is <a href="https://github.com/JuliaGPU/CUDA.jl/issues/391">under way</a> to extend these
+capabilities to the rest of CUDA.jl, e.g., the CUDNN wrappers, or the native kernel
+programming capabilities.</p>
+<h2 id="new-default-stream-semantics">New default stream semantics</h2>
+<p>In CUDA.jl 2.0 we&rsquo;re <a href="https://github.com/JuliaGPU/CUDA.jl/pull/395">switching</a> to CUDA&rsquo;s
+<a href="https://developer.nvidia.com/blog/gpu-pro-tip-cuda-7-streams-simplify-concurrency/">simplified stream programming
+model</a>.
+This simplifies working with multiple streams, and opens up more possibilities for
+concurrent execution of GPU operations.</p>
+<h3 id="multi-stream-programming">Multi-stream programming</h3>
+<p>In the old model, the default stream (used by all GPU operations unless specified otherwise)
+was a special stream whose commands could not be executed concurrently with commands on
+regular, explicitly-created streams. For example, if we interleave kernels executed on a
+dedicated stream with ones on the default one, execution was serialized:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-julia" data-lang="julia"><span style="color:#66d9ef">using</span> CUDA
+
+N <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">20</span>
+
+<span style="color:#66d9ef">function</span> kernel(x, n)
+    tid <span style="color:#f92672">=</span> threadIdx()<span style="color:#f92672">.</span>x <span style="color:#f92672">+</span> (blockIdx()<span style="color:#f92672">.</span>x<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>) <span style="color:#f92672">*</span> blockDim()<span style="color:#f92672">.</span>x
+    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">=</span> tid<span style="color:#f92672">:</span>blockDim()<span style="color:#f92672">.</span>x<span style="color:#f92672">*</span>gridDim()<span style="color:#f92672">.</span>x<span style="color:#f92672">:</span>n
+        x[i] <span style="color:#f92672">=</span> CUDA<span style="color:#f92672">.</span>sqrt(CUDA<span style="color:#f92672">.</span>pow(<span style="color:#ae81ff">3.14159f0</span>, i))
+    <span style="color:#66d9ef">end</span>
+    <span style="color:#66d9ef">return</span>
+<span style="color:#66d9ef">end</span>
+
+num_streams <span style="color:#f92672">=</span> <span style="color:#ae81ff">8</span>
+
+<span style="color:#66d9ef">for</span> i <span style="color:#66d9ef">in</span> <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>num_streams
+    stream <span style="color:#f92672">=</span> CuStream()
+
+    data <span style="color:#f92672">=</span> CuArray{<span style="color:#66d9ef">Float32</span>}(undef, N)
+
+    <span style="color:#a6e22e">@cuda</span> blocks<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> threads<span style="color:#f92672">=</span><span style="color:#ae81ff">64</span> stream<span style="color:#f92672">=</span>stream kernel(data, N)
+
+    <span style="color:#a6e22e">@cuda</span> kernel(data, <span style="color:#ae81ff">0</span>)
+<span style="color:#66d9ef">end</span>
+</code></pre></div>
+
+<figure>
+	<img src="https://juliagpu.org/2020-10-02-cuda_2.0/multistream_before.png" alt="Multi-stream programming (old)" />
+</figure>
+
+<p>In the new model, default streams are regular streams and commands issued on them can
+execute concurrently with those on other streams:</p>
+
+
+<figure>
+	<img src="https://juliagpu.org/2020-10-02-cuda_2.0/multistream_after.png" alt="Multi-stream programming (new)" />
+</figure>
+
+<h3 id="multi-threading">Multi-threading</h3>
+<p>Another consequence of the new stream model is that each thread gets its own default stream
+(accessible as <code>CuStreamPerThread()</code>). Together with Julia&rsquo;s threading capabilities, this
+makes it trivial to group independent work in tasks, benefiting from concurrent execution on
+the GPU where possible:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-julia" data-lang="julia"><span style="color:#66d9ef">using</span> CUDA
+
+N <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">20</span>
+
+<span style="color:#66d9ef">function</span> kernel(x, n)
+    tid <span style="color:#f92672">=</span> threadIdx()<span style="color:#f92672">.</span>x <span style="color:#f92672">+</span> (blockIdx()<span style="color:#f92672">.</span>x<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>) <span style="color:#f92672">*</span> blockDim()<span style="color:#f92672">.</span>x
+    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">=</span> tid<span style="color:#f92672">:</span>blockDim()<span style="color:#f92672">.</span>x<span style="color:#f92672">*</span>gridDim()<span style="color:#f92672">.</span>x<span style="color:#f92672">:</span>n
+        x[i] <span style="color:#f92672">=</span> CUDA<span style="color:#f92672">.</span>sqrt(CUDA<span style="color:#f92672">.</span>pow(<span style="color:#ae81ff">3.14159f0</span>, i))
+    <span style="color:#66d9ef">end</span>
+    <span style="color:#66d9ef">return</span>
+<span style="color:#66d9ef">end</span>
+
+Threads<span style="color:#f92672">.</span><span style="color:#a6e22e">@threads</span> <span style="color:#66d9ef">for</span> i <span style="color:#66d9ef">in</span> <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>Threads<span style="color:#f92672">.</span>nthreads()
+    data <span style="color:#f92672">=</span> CuArray{<span style="color:#66d9ef">Float32</span>}(undef, N)
+    <span style="color:#a6e22e">@cuda</span> blocks<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span> threads<span style="color:#f92672">=</span><span style="color:#ae81ff">64</span> kernel(data, N)
+    synchronize(CuDefaultStream())
+<span style="color:#66d9ef">end</span>
+</code></pre></div>
+
+<figure>
+	<img src="https://juliagpu.org/2020-10-02-cuda_2.0/multithread_after.png" alt="Multi-threading (new)" />
+</figure>
+
+<p>With the old model, execution would have been serialized because the default stream was the
+same across threads:</p>
+
+
+<figure>
+	<img src="https://juliagpu.org/2020-10-02-cuda_2.0/multithread_before.png" alt="Multi-threading (old)" />
+</figure>
+
+<p>Future improvements will make this behavior configurable, such that users can use a
+different default stream per task.</p>
+<h2 id="sparse-array-clean-up">Sparse array clean-up</h2>
+<p>As part of CUDA.jl 2.0, the sparse array support <a href="https://github.com/JuliaGPU/CUDA.jl/pull/409">has been
+refactored</a>, bringing them in line with other
+array types and their expected behavior. For example, the custom <code>switch2</code> methods have been
+removed in favor of calls to <code>convert</code> and array constructors:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-julia" data-lang="julia">julia<span style="color:#f92672">&gt;</span> <span style="color:#66d9ef">using</span> SparseArrays
+julia<span style="color:#f92672">&gt;</span> <span style="color:#66d9ef">using</span> CUDA, CUDA<span style="color:#f92672">.</span>CUSPARSE
+
+julia<span style="color:#f92672">&gt;</span> CuSparseMatrixCSC(CUDA<span style="color:#f92672">.</span>rand(<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>))
+<span style="color:#ae81ff">2</span>×2 CuSparseMatrixCSC{<span style="color:#66d9ef">Float32</span>} with <span style="color:#ae81ff">4</span> stored entries<span style="color:#f92672">:</span>
+  [<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">1</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.124012</span>
+  [<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">1</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.791714</span>
+  [<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">2</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.487905</span>
+  [<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">2</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.752466</span>
+
+julia<span style="color:#f92672">&gt;</span> CuSparseMatrixCOO(sprand(<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">0.5</span>))
+<span style="color:#ae81ff">2</span>×2 CuSparseMatrixCOO{<span style="color:#66d9ef">Float64</span>} with <span style="color:#ae81ff">3</span> stored entries<span style="color:#f92672">:</span>
+  [<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">1</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.183183</span>
+  [<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">1</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.966466</span>
+  [<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">2</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.064101</span>
+
+julia<span style="color:#f92672">&gt;</span> CuSparseMatrixCSR(ans)
+<span style="color:#ae81ff">2</span>×2 CuSparseMatrixCSR{<span style="color:#66d9ef">Float64</span>} with <span style="color:#ae81ff">3</span> stored entries<span style="color:#f92672">:</span>
+  [<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">1</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.183183</span>
+  [<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">1</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.966466</span>
+  [<span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">2</span>]  <span style="color:#f92672">=</span>  <span style="color:#ae81ff">0.064101</span>
+</code></pre></div><p><a href="https://github.com/JuliaGPU/CUDA.jl/pull/421">Initial support for the COO sparse matrix type
+</a> has also been added, along with more <a href="https://github.com/JuliaGPU/CUDA.jl/pull/351">better
+support for sparse matrix-vector
+multiplication</a>.</p>
+<h2 id="support-for-cuda-111">Support for CUDA 11.1</h2>
+<p>This release also features support for the brand-new CUDA 11.1. As there is no compatible
+release of CUDNN or CUTENSOR yet, CUDA.jl won&rsquo;t automatically select this version, but you
+can force it to by setting the <code>JULIA_CUDA_VERSION</code> environment variable to <code>11.1</code>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-julia" data-lang="julia">julia<span style="color:#f92672">&gt;</span> ENV[<span style="color:#e6db74">&#34;JULIA_CUDA_VERSION&#34;</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;11.1&#34;</span>
+
+julia<span style="color:#f92672">&gt;</span> <span style="color:#66d9ef">using</span> CUDA
+
+julia<span style="color:#f92672">&gt;</span> CUDA<span style="color:#f92672">.</span>versioninfo()
+CUDA toolkit <span style="color:#ae81ff">11.1</span><span style="color:#f92672">.</span><span style="color:#ae81ff">0</span>, artifact installation
+
+Libraries<span style="color:#f92672">:</span>
+<span style="color:#f92672">-</span> CUDNN<span style="color:#f92672">:</span> missing
+<span style="color:#f92672">-</span> CUTENSOR<span style="color:#f92672">:</span> missing
+</code></pre></div><h2 id="minor-changes">Minor changes</h2>
+<p>Many other changes are part of this release:</p>
+<ul>
+<li>Views, reshapes and array reinterpretations <a href="https://github.com/JuliaGPU/CUDA.jl/pull/437">are now
+represented</a> by the Base array wrappers,
+simplifying the CuArray type definition.</li>
+<li>Various optimizations to <a href="https://github.com/JuliaGPU/CUDA.jl/pull/428">CUFFT</a> and
+<a href="https://github.com/JuliaGPU/CUDA.jl/pull/321">CUDNN</a> library wrappers.</li>
+<li><a href="https://github.com/JuliaGPU/CUDA.jl/pull/427">Support</a> for <code>LinearAlgebra.reflect!</code> and
+<code>rotate!</code></li>
+<li><a href="https://github.com/JuliaGPU/CUDA.jl/pull/435">Initial support</a> for calling CUDA libraries
+with strided inputs</li>
+</ul>
+
+
+
+      </main>
+    </div>
+    
+<footer id="footer" class="mt-auto text-center text-muted">
+  <div class="container">
+    Made with <a href="https://gohugo.io/">Hugo</a> &amp; <a href="https://github.com/zwbetz-gh/vanilla-bootstrap-hugo-theme">Vanilla</a>
+  </div>
+</footer>
+
+    <script src="https://juliagpu.org/js/feather.min.js"></script>
+<script>
+  feather.replace()
+</script>
+
+
+    
+  
+  <script>
+  window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
+  ga('create', 'UA-154489943-1', 'auto');
+  ga('send', 'pageview');
+  </script>
+  <script async src='https://www.google-analytics.com/analytics.js'></script>
+  
+
+  </body>
+</html>
